@@ -1,4 +1,3 @@
-
 // Definition of interrupt names
 #include <avr/io.h>
 // ISR interrupt service routine
@@ -56,23 +55,27 @@ void receive_bit(byte value)
 
 void loop()
 {
+  unsigned long buffer;
   // If we have the required number of bits, then we _should_ have
   // a complete key. Out it goes...
   if (bitCount == codeSize)
   {
+    // Read in the current key and reset everything so that the interrupts can carry on in the background
+    buffer = keyNumber;
+    keyNumber = 0;
+    bitCount = 0;
+
+    // TODO: Strip leading and trailing parity bits from the buffer.
+    
     // Light the LED
     digitalWrite(ledPin, HIGH);
     
     // Send the key number over the serial interface so that we can check it at the computer.
     // For now, it'll include the parity bits on both ends.
-    Serial.println(keyNumber);
+    Serial.println(buffer);
     // Wait 100ms so that the LED is visible as having pulsed.
     delay(100);
     // Turn off the LED
-    digitalWrite(ledPin, LOW);
-    
-    // Reset the "buffer" and bit counts ready for the next card.
-    keyNumber = 0;
-    bitCount = 0;
+    digitalWrite(ledPin, LOW);    
   }
 }
