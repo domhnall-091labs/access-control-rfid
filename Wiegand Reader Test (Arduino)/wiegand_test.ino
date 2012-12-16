@@ -60,21 +60,26 @@ void loop()
   // a complete key. Out it goes...
   if (bitCount == codeSize)
   {
-    // Read in the current key and reset everything so that the interrupts can carry on in the background
+    // Read in the current key and reset everything so that the interrupts can 
+    // carry on in the background.
     buffer = keyNumber;
     keyNumber = 0;
     bitCount = 0;
 
-    // TODO: Strip leading and trailing parity bits from the buffer.
+    // Strip leading and trailing parity bits from the buffer.
+    buffer >> 1;
+    bitClear(buffer, 24);
     
     // Light the LED
     digitalWrite(ledPin, HIGH);
     
-    // Send the key number over the serial interface so that we can check it at the computer.
-    // For now, it'll include the parity bits on both ends.
+    // Send the key number over the serial interface so that we can check it at 
+    // the computer.
     Serial.println(buffer);
+
     // Wait 100ms so that the LED is visible as having pulsed.
     delay(100);
+
     // Turn off the LED
     digitalWrite(ledPin, LOW);    
   }
