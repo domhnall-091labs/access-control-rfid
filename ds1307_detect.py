@@ -1,20 +1,35 @@
 #!/usr/bin/env python
-import os, sys, commands, re  # 'commands' requires python 2.7
+import os, sys, commands, re
 
-DS1307_I2C_ID = 68  # 0x68
+DS1307_I2C_ID = 68	# 0x68
 number_regex = re.compile('[0-9]+')
 
-def enumerate_i2c_buses:
+def enumerate_i2c_buses():
 	# Get a list of the names of the i2c buses
-	shell_command = 'i2cdetect -l | cut -f1'
-	return commands.getoutput(shell_command).split('\n')
+	shell_command = 'i2cdetect -l'
+	result_code, results = commands.getstatusoutput(shell_command)
+	
+	if result_code != 0:
+		print >> sys.stderr, "Couldn't execute '%s'" % shell_command
+		return []
+	
+	results = [r.split('\t')[0] for r in results.split('\n')[1:]]
+
+	# Ignore the first line, it's just column headers...
+	results = results.split('\n')
 
 def scan_i2c_bus(id):
 	# Use i2cdetect to detect any devices that are on the bus
 	shell_command = 'i2cdetect -y %d' % id
 
+	result_code, results = commands.getstatusoutput(shell_command)
+
+	if result_code != 0:
+		print >> sys.stderr, "Couldn't execute '%s'" % shell_command
+		return []
+
 	# Ignore the first line, it's just column headers...
-	results = commands.getoutput(shell_command).split('\n')[1:]
+	results = results.split('\n')[1:]
 
 	i2c_devices = []
 
@@ -32,13 +47,14 @@ if __name__ == '__main__':
 
 	# Get the i2c bus IDs and extract the numerical portions from those.
 	i2c_buses = enumerate_i2c_buses()
+	print i2c_buses
 	i2c_bus_numbers = [int(bus_id[-1]) for bus_id in i2c_buses]
 
 	for bus in i2c_bus_numbers:
 		devices = scan_i2c_bus(bus)
 
 		if DS1307_I2C_ID in devices:
-			print >> sys.stderr "DS1307 found on I2C bus #%d" % 
+			print >> sys.stderr, "DS1307 found on I2C bus #%d" % bus
 			print bus
 			sys.exit(0)
 
