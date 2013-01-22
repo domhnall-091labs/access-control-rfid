@@ -1,10 +1,9 @@
 #!/usr/bin/env python
-import os, sys, re, datetime
-from exceptions import OSError  		# Not sure if this is the right way to go.
+import os, sys, datetime
+from exceptions import OSError			# Not sure if this is the right way to go.
 
-DEVICE_I2C_ID = 68						# Actually 0x68, but i2cdetect speaks hex
+DEVICE_I2C_ID = 0x68					# i2cdetect speaks hex
 DEVICE_NAME = 'ds1307'					
-number_regex = re.compile('[0-9]+')		# Generic regex to extract numbers
 
 def shell_execute(command):
 	# Run a shell command and raise an exception if it doesn't work.
@@ -29,7 +28,7 @@ def enumerate_i2c_buses():
 def scan_i2c_bus(id):
 	# Use i2cdetect to detect any devices that are on the specified bus.
 	shell_command = 'i2cdetect -y %d' % id
-	i2c_devices = []
+	i2c_devices = {}
 
 	try:
 		results = shell_execute(shell_command).split('\n')[1:]
@@ -37,10 +36,21 @@ def scan_i2c_bus(id):
 		return []
 
 	for row in results:
-		i2c_devices += [int(device_address) for device_address in number_regex.findall(row)]
+		row_offset = int(row[:2], 16)	# Addresses are all in hex...
+		if row_offset = 0:
+			row_index = 3
+		else:
+			row_index = 0
 
-	# Make sure the list returned is unique.
-	return list(set(i2c_devices))
+		row_data = [i.strip() for i in row[4:].strip().split(" ")]
+		for value in row_data:
+			address = hex(row_offset + row_index)
+			if value == "--":
+				continue
+			else:
+				i2c_devices[address] = value
+	
+	return i2c_devices
 
 if __name__ == '__main__':
 	# Make sure this program only runs as root.
@@ -56,18 +66,26 @@ if __name__ == '__main__':
 		bus_id = int(bus.split('-')[-1])
 		device_addresses = scan_i2c_bus(bus_id)
 
-		if DEVICE_I2C_ID in device_addresses:
-			print "%s found on I2C bus %s. Configuring..." % (DEVICE_NAME, bus)
+		# Check if there's a device at the address specified.
+		device_id_string = "%#x" % DEVICE_I2C_ID
+		if device_id_string in device_addresses.keys():
 			device_found = True
 
-			# Register RTC as hardware clock.
-			shell_command = "echo %s 0x%d > /sys/class/i2c-adapter/%s/new_device" % (DEVICE_NAME, DEVICE_I2C_ID, bus)
-			try:
-				shell_execute(shell_command)
-				print "Done."
-				sys.exit(0)
-			except OSError, e:
-				sys.exit("\nFailed: %s\n" % e.message) 
+			# Need to check if the device is in use or not...
+			if device_addresses[device_id_string] == "UU":
+				# Device is in use...
+				print "Device already in use, skipping configuration phase.
+			else:
+				print "%s found on I2C bus %s. Configuring..." % (DEVICE_NAME, bus)
+
+				# Register RTC as hardware clock.
+				shell_command = "echo %s 0x%d > /sys/class/i2c-adapter/%s/new_device" % (DEVICE_NAME, DEVICE_I2C_ID, bus)
+				try:
+					shell_execute(shell_command)
+					print "Done."
+					sys.exit(0)
+				except OSError, e:
+					sys.exit("\nFailed: %s\n" % e.message) 
 
 	if not device_found:
 		sys.exit("\nFailed to find RTC module on I2C bus. Sorry.\n")
