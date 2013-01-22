@@ -13,10 +13,8 @@ def enumerate_i2c_buses():
 		print >> sys.stderr, "Couldn't execute '%s'" % shell_command
 		return []
 	
-	results = [r.split('\t')[0] for r in results.split('\n')[1:]]
-
-	# Ignore the first line, it's just column headers...
-	results = results.split('\n')
+	# Need to return the first field off each line. Each line is tab delimited.
+	return [r.split('\t')[0] for r in results.split('\n')]
 
 def scan_i2c_bus(id):
 	# Use i2cdetect to detect any devices that are on the bus
@@ -46,16 +44,15 @@ if __name__ == '__main__':
 		sys.exit("\nOnly root can run this script\n")	
 
 	# Get the i2c bus IDs and extract the numerical portions from those.
-	i2c_buses = enumerate_i2c_buses()
-	print i2c_buses
-	i2c_bus_numbers = [int(bus_id[-1]) for bus_id in i2c_buses]
+	i2c_buses = [int(bus_id[-1]) for bus_id in enumerate_i2c_buses()]
 
-	for bus in i2c_bus_numbers:
+	for bus in i2c_buses:
 		devices = scan_i2c_bus(bus)
 
 		if DS1307_I2C_ID in devices:
 			print >> sys.stderr, "DS1307 found on I2C bus #%d" % bus
 			print bus
+			# TODO: 
 			sys.exit(0)
 
 	# If we get to here, then the search failed.
